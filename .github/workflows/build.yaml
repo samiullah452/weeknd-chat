@@ -66,5 +66,5 @@ jobs:
       - name: Deploy latest Image Tag
         run: |
           aws eks update-kubeconfig --region us-west-1 --name Candid_EKS_Cluster_1_31
-          kubectl rollout restart deployment candid-backend
-          kubectl rollout status deployment candid-backend
+          kubectl rollout restart deployment weeknd-chat
+          kubectl rollout status deployment weeknd-chat
