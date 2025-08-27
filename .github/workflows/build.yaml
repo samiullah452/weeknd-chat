@@ -1,0 +1,70 @@
+name: Build and Deploy Node.js App
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ecr_repository: 065603969003.dkr.ecr.us-west-1.amazonaws.com/weeknd-chat
+  NODE_VERSION: '18'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.ENV_FILE_BASE64 }}" | base64 -d > .env
+
+      - name: Install dependencies
+        run: |
+          npm ci
+
+      - name: Run tests (if available)
+        run: |
+          npm test --if-present
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::065603969003:role/github-actions-role
+          aws-region: us-west-1
+          role-duration-seconds: 1800
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          mask-password: 'true'
+      
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t weeknd-chat .
+          docker tag weeknd-chat:latest ${ecr_repository}:latest
+          docker push ${ecr_repository}:latest
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.24.0'
+
+      - name: Deploy latest Image Tag
+        run: |
+          aws eks update-kubeconfig --region us-west-1 --name Candid_EKS_Cluster_1_31
+          kubectl rollout restart deployment candid-backend
+          kubectl rollout status deployment candid-backend
