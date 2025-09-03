@@ -53,7 +53,7 @@ class SocketService {
     socket.on('listRooms', async (data) => {
       try {
         const { page = 0, searchQuery = null } = data || {};
-        const rooms = await userService.listRooms(socket.userId, page, searchQuery);
+        const rooms = await userService.listRooms(1622, page, searchQuery);
         
         socket.emit('roomsListed', createSuccessResponse(
           MESSAGES.SUCCESS.ROOMS_LISTED,
