@@ -65,8 +65,8 @@ async listRooms(userId, page = 0, searchQuery = null) {
         try {
           let coverURL = null;
           
-          if (row.coverData) {
-            const [mediaId, mediaType, fileName, userId] = row.coverData.split('|');
+          if (row.cover_data) {
+            const [mediaId, mediaType, fileName, userId] = row.cover_data.split('|');
             coverURL = await this.calculateCoverURL(userId, mediaId, fileName, mediaType);
           }
           
