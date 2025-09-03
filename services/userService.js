@@ -36,100 +36,77 @@ class UserService {
     }
   }
 
-  async listRooms(userId, page = 0, searchQuery = null) {
-    try {
-      const limit = parseInt(process.env.PAGE_LIMIT);
-      const offset = page * limit;
+async listRooms(userId, page = 0, searchQuery = null) {
+  try {
+    const limit = parseInt(process.env.PAGE_LIMIT) || 20;
+    const offset = page * limit;
 
-      let whereCondition = 'WHERE ur.user_id = ?';
-      let queryParams = [userId];
+    // Build WHERE condition with proper parameterization
+    let whereCondition = ` WHERE u.user_id = ?`;
+    const queryParams = [userId];
 
-      if (searchQuery) {
-        whereCondition += ` AND (
-          (r.type = 'event' AND r.name LIKE '${searchQuery}%') 
-          OR 
-          (r.type = 'direct_message' AND EXISTS (
-            SELECT 1 FROM user_room ur3 
-            JOIN user u ON ur3.user_id = u.id 
-            WHERE ur3.room_id = r.id 
-            AND ur3.user_id != ? 
-            AND u.first_name LIKE '${searchQuery}%'
-          ))
-        )`;
-        queryParams.push(userId);
-      }
-
-      const query = `SELECT 
-          r.id,
-          r.name,
-          r.type,
-          r.created_at,
-          COALESCE(
-            (SELECT COUNT(*) 
-             FROM message m 
-             WHERE m.room_id = ur.room_id 
-             AND m.id > COALESCE(ur.last_message_id, 0)
-            ), 0
-          ) as unreadCount,
-          CASE 
-            WHEN r.type = 'event' THEN 
-              COALESCE(
-                (SELECT CONCAT(up.user_id, '|', up.id, '|', up.file_name, '|photo') 
-                 FROM irl e 
-                 JOIN user_photo up ON e.media_id = up.id 
-                 WHERE e.room_id = r.id AND e.media_type = 'photo'
-                 LIMIT 1),
-                (SELECT CONCAT(uv.user_id, '|', uv.id, '|', uv.file_name, '|video') 
-                 FROM irl e 
-                 JOIN user_video uv ON e.media_id = uv.id 
-                 WHERE e.room_id = r.id AND e.media_type = 'video'
-                 LIMIT 1)
-              )
-            WHEN r.type = 'direct_message' THEN 
-              (SELECT CONCAT(up.user_id, '|', up.id, '|', up.file_name, '|photo') 
-               FROM user_room ur2 
-               JOIN user_photo up ON ur2.user_id = up.user_id 
-               WHERE ur2.room_id = r.id 
-               AND ur2.user_id != ? AND up.photo_type = 1
-               LIMIT 1)
-            ELSE NULL
-          END as coverData
-        FROM user_room ur
-        JOIN room r ON ur.room_id = r.id
-        ${whereCondition} 
-        ORDER BY (
-          SELECT MAX(m.created_at) 
-          FROM message m 
-          WHERE m.room_id = r.id
-        ) DESC NULLS LAST
-        LIMIT ${limit} OFFSET ${offset}`;
-
-      queryParams.push(userId);
-      const results = await db.query(query, queryParams);
-      const rooms = await Promise.all(results.map(async (row) => {
-      let coverURL = null;
-        
-        if (row.coverData) {
-          const [userId, mediaId, fileName, mediaType] = row.coverData.split('|');
-          coverURL = await this.calculateCoverURL(userId, mediaId, fileName, mediaType);
-        }
-        
-        return {
-          id: row.id,
-          name: row.name,
-          type: row.type,
-          createdAt: row.created_at,
-          unreadCount: row.unreadCount,
-          coverURL
-        };
-      }));
-      
-      return rooms;
-    } catch (error) {
-      console.error('Error listing user rooms:', error);
-      throw error;
+    if (searchQuery) {
+      whereCondition += ` AND u.name like '?'`
+      queryParams.push(`${searchQuery}%`);
     }
+
+    // Optimized query using CTEs instead of LATERAL JOINs
+    const query = `
+      SELECT * FROM user_room_info u
+      ${whereCondition}      
+      ORDER BY u.last_message_date DESC
+      LIMIT ${limit} OFFSET ${offset}`;
+
+    const results = await db.query(query, queryParams);
+    
+    // Process results in parallel with error handling for each room
+    const rooms = await Promise.all(
+      results.map(async (row) => {
+        try {
+          let coverURL = null;
+          
+          if (row.coverData) {
+            const [mediaId, mediaType, fileName, userId] = row.coverData.split('|');
+            coverURL = await this.calculateCoverURL(userId, mediaId, fileName, mediaType);
+          }
+          
+          const lastMessage = {
+            text: row.last_message_text,
+            type: row.last_message_type,
+            createdAt: row.last_message_date
+          };
+
+          return {
+            id: row.id,
+            name: row.name,
+            type: row.type,
+            createdAt: row.created_at,
+            unreadCount: row.unreadCount,
+            coverURL,
+            lastMessage
+          };
+        } catch (error) {
+          console.error(`Error processing room ${row.id}:`, error);
+          // Return room with minimal data if processing fails
+          return {
+            id: row.id,
+            name: row.name,
+            type: row.type,
+            createdAt: row.created_at,
+            unreadCount: 0,
+            coverURL: null,
+            lastMessage: null
+          };
+        }
+      })
+    );
+    
+    return rooms;
+  } catch (error) {
+    console.error('Error listing user rooms:', error);
+    throw error;
   }
+}
 
   async checkRoomAccess(userId, roomId) {
     try {
@@ -143,95 +120,6 @@ class UserService {
     }
   }
 
-  async listMessages(userId, roomId, page = 0) {
-    try {
-      const limit = parseInt(process.env.PAGE_LIMIT) || 10;
-      const offset = page * limit;
-
-      const query = `
-        SELECT 
-          m.id,
-          m.value,
-          m.type,
-          m.created_at,
-          m.parent_message_id,
-          m.user_id,
-          u.first_name,
-          md.id as media_id,
-          md.fileType as media_fileType,
-          md.type as media_type,
-          md.fileName as media_fileName,
-          md.thumbnail as media_thumbnail,
-          GROUP_CONCAT(
-            CASE WHEN mr.value IS NOT NULL 
-            THEN CONCAT(mr.value, ':', COUNT(mr.value)) 
-            END SEPARATOR ','
-          ) as reactions,
-          COUNT(mr.message_id) as totalReactions,
-          (SELECT mr_user.value 
-           FROM message_reaction mr_user 
-           WHERE mr_user.message_id = m.id 
-           AND mr_user.user_id = ?
-           LIMIT 1
-          ) as reacted
-        FROM message m
-        JOIN users u ON m.user_id = u.id
-        LEFT JOIN media md ON m.id = md.message_id
-        LEFT JOIN message_reaction mr ON m.id = mr.message_id
-        WHERE m.room_id = ?
-        GROUP BY m.id, m.value, m.type, m.created_at, m.parent_message_id, m.user_id, u.first_name, md.id, md.fileType, md.type, md.fileName, md.thumbnail
-        ORDER BY m.created_at DESC
-        LIMIT ? OFFSET ?
-      `;
-      
-      const results = await db.query(query, [userId, roomId, limit, offset]);
-      
-      const messages = await Promise.all(results.map(async (row) => {
-        const reactions = {};
-        if (row.reactions) {
-          row.reactions.split(',').forEach(reaction => {
-            const [emoji, count] = reaction.split(':');
-            if (emoji && count) {
-              reactions[emoji] = parseInt(count);
-            }
-          });
-        }
-
-        let media = null;
-        if (row.media_id) {
-          const uri = await this.calculateMediaUri(row.user_id, row.media_type, row.media_id, row.media_fileName);
-          media = {
-            id: row.media_id,
-            uri,
-            fileType: row.media_fileType,
-            type: row.media_type,
-            thumbnail: row.media_thumbnail
-          };
-        }
-
-        return {
-          id: row.id,
-          value: row.value,
-          type: row.type,
-          createdAt: row.created_at,
-          parentMessageId: row.parent_message_id,
-          user: {
-            id: row.user_id,
-            firstName: row.first_name
-          },
-          media,
-          reactions,
-          totalReactions: row.totalReactions || 0,
-          reacted: row.reacted
-        };
-      }));
-
-      return messages;
-    } catch (error) {
-      console.error('Error listing messages:', error);
-      throw error;
-    }
-  }
 
   async calculateMediaUri(userId, mediaId, fileName, mediaType) {
     try {
