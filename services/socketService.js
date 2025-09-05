@@ -50,12 +50,12 @@ class SocketService {
       { userId: socket.userId }
     ));
 
-    socket.on('listRooms', async (data) => {
+    socket.on('list-rooms', async (data) => {
       try {
         const { page = 0, searchQuery = null } = data || {};
         const rooms = await userService.listRooms(1622, page, searchQuery);
         
-        socket.emit('roomsListed', createSuccessResponse(
+        socket.emit('rooms-fetched', createSuccessResponse(
           MESSAGES.SUCCESS.ROOMS_LISTED,
           { rooms, page, searchQuery }
         ));
@@ -69,7 +69,7 @@ class SocketService {
       }
     });
 
-    socket.on('joinRoom', async (data) => {
+    socket.on('list-messages', async (data) => {
       try {
         const { roomId, page = 0 } = data;
         
@@ -90,8 +90,8 @@ class SocketService {
         // Get messages for the room
         const messages = await userService.listMessages(roomId, page);
         
-        socket.emit('roomJoined', createSuccessResponse(
-          MESSAGES.SUCCESS.ROOM_JOINED,
+        socket.emit('messages-fetched', createSuccessResponse(
+          MESSAGES.SUCCESS.MESSAGES_LISTED,
           { roomId, messages, page }
         ));
 
