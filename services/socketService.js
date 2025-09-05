@@ -71,7 +71,7 @@ class SocketService {
 
     socket.on('joinRoom', async (data) => {
       try {
-        const { roomId } = data;
+        const { roomId, page = 0 } = data;
         
         if (!roomId) {
           socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ID_REQUIRED));
@@ -87,9 +87,12 @@ class SocketService {
 
         socket.join(`room_${roomId}`);
         
+        // Get messages for the room
+        const messages = await userService.listMessages(roomId, page);
+        
         socket.emit('roomJoined', createSuccessResponse(
           MESSAGES.SUCCESS.ROOM_JOINED,
-          { roomId }
+          { roomId, messages, page }
         ));
 
       } catch (error) {

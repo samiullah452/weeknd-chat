@@ -36,39 +36,33 @@ class UserService {
     }
   }
 
-async listRooms(userId, page = 0, searchQuery = null) {
-  try {
-    const limit = parseInt(process.env.PAGE_LIMIT) || 20;
-    const offset = page * limit;
+  async listRooms(userId, page = 0, searchQuery = null) {   
+    try {
+      const limit = parseInt(process.env.PAGE_LIMIT) || 20;
+      const offset = page * limit;
 
-    // Build WHERE condition with proper parameterization
-    let whereCondition = ` WHERE u.user_id = ?`;
-    const queryParams = [userId];
+      // Build WHERE condition with proper parameterization
+      let whereCondition = ` WHERE u.user_id = ?`;
+      const queryParams = [userId];
 
-    if (searchQuery) {
-      whereCondition += ` AND u.name like '?'`
-      queryParams.push(`${searchQuery}%`);
-    }
+      if (searchQuery) {
+        whereCondition += ` AND u.name like ?`;
+        queryParams.push(`${searchQuery}%`);
+      }
 
-    // Optimized query using CTEs instead of LATERAL JOINs
-    const query = `
-      SELECT * FROM user_room_info u
-      ${whereCondition}      
-      ORDER BY u.last_message_date DESC
-      LIMIT ${limit} OFFSET ${offset}`;
+      // Optimized query using CTEs instead of LATERAL JOINs
+      const query = `
+        SELECT * FROM user_room_info u
+        ${whereCondition}      
+        ORDER BY u.last_message_date DESC
+        LIMIT ${limit} OFFSET ${offset}`;
 
-    const results = await db.query(query, queryParams);
-    
-    // Process results in parallel with error handling for each room
-    const rooms = await Promise.all(
-      results.map(async (row) => {
-        try {
-          let coverURL = null;
-          
-          if (row.cover_data) {
-            const [mediaId, mediaType, fileName, userId] = row.cover_data.split('|');
-            coverURL = await this.calculateCoverURL(userId, mediaId, fileName, mediaType);
-          }
+      const results = await db.query(query, queryParams);
+      
+      // Process results in parallel with error handling for each room
+      const rooms = await Promise.all(
+        results.map(async (row) => {
+          const coverURL = await this.processCoverURL(row, `room ${row.id}`);
           
           const lastMessage = {
             text: row.last_message_text,
@@ -79,34 +73,63 @@ async listRooms(userId, page = 0, searchQuery = null) {
           return {
             id: row.id,
             name: row.name,
-            type: row.type,
-            createdAt: row.created_at,
+            type: row.room_type,
+            createdAt: row.room_created_at,
             unreadCount: row.unreadCount,
             coverURL,
             lastMessage
           };
-        } catch (error) {
-          console.error(`Error processing room ${row.id}:`, error);
-          // Return room with minimal data if processing fails
+        })
+      );
+      return rooms;
+    } catch (error) {
+      console.error('Error listing user rooms:', error);
+      throw error;
+    }
+  }
+
+  async listMessages(roomId, page = 0) {
+    try {
+      const limit = parseInt(process.env.PAGE_LIMIT) || 20;
+      const offset = page * limit;
+
+      const query = `
+        SELECT * FROM message_info 
+        WHERE room_id = ?
+        ORDER BY created_at DESC
+        LIMIT ${limit} OFFSET ${offset}`;
+
+      const results = await db.query(query, [roomId]);
+      
+      // Process results in parallel with error handling for each message
+      const messages = await Promise.all(
+        results.map(async (row) => {
+          const coverURL = await this.processCoverURL(row, `message ${row.id}`);
+          
           return {
             id: row.id,
-            name: row.name,
             type: row.type,
-            createdAt: row.created_at,
-            unreadCount: 0,
-            coverURL: null,
-            lastMessage: null
+            value: row.value,
+            parentMessage: row.parent_message ? {
+              id: row.parent_message,
+              value: row.parent_message_text
+            } : null,
+            user: {
+              id: row.user_id,
+              firstName: row.first_name
+            },
+            reactions: row.reactions,
+            mentions: row.mentions,
+            coverURL
           };
-        }
-      })
-    );
-    
-    return rooms;
-  } catch (error) {
-    console.error('Error listing user rooms:', error);
-    throw error;
+        })
+      );
+      return messages;
+    } catch (error) {
+      console.error('Error listing messages:', error);
+      throw error;
+    }
   }
-}
 
   async checkRoomAccess(userId, roomId) {
     try {
@@ -120,39 +143,20 @@ async listRooms(userId, page = 0, searchQuery = null) {
     }
   }
 
-
-  async calculateMediaUri(userId, mediaId, fileName, mediaType) {
+  async processCoverURL(row, itemId) {
+    let coverURL = null;
+    
     try {
-      const compressedVideoFolder = process.env.COMPRESSED_VIDEO_FOLDER || 'compressed/video/';
-      const videoFolder = process.env.VIDEO_FOLDER || 'video/';
-      const compressedPhotoFolder = process.env.COMPRESSED_PHOTO_FOLDER || 'compressed/photo/';
-      const photoFolder = process.env.PHOTO_FOLDER || 'photo/';
-      
-      if (mediaType === 'video') {
-        const compressedObjectName = `${compressedVideoFolder}${userId}/${mediaId}.mp4`;
-        
-        const compressedExists = await awsService.checkObjectExists(compressedObjectName);
-        if (compressedExists) {
-          return compressedObjectName;
-        }
-        
-        return `${videoFolder}${userId}/${mediaId}${fileName}`;
-      } else if (mediaType === 'photo') {
-        const compressedObjectName = `${compressedPhotoFolder}${userId}/${mediaId}.jpg`;
-        
-        const compressedExists = await awsService.checkObjectExists(compressedObjectName);
-        if (compressedExists) {
-          return compressedObjectName;
-        }
-        
-        return `${photoFolder}${userId}/${mediaId}${fileName}`;
+      if (row.cover_data) {
+        const [mediaId, mediaType, fileName, userId] = row.cover_data.split('|');
+        coverURL = await this.calculateCoverURL(userId, mediaId, fileName, mediaType);
       }
-      
-      return null;
     } catch (error) {
-      console.error('Error calculating cover URL:', error);
-      return null;
+      console.error(`Error processing cover for ${itemId}:`, error);
+      coverURL = null;
     }
+    
+    return coverURL;
   }
 
   async calculateCoverURL(userId, mediaId, fileName, mediaType) {
@@ -170,131 +174,6 @@ async listRooms(userId, page = 0, searchQuery = null) {
     }
   }
 
-
-  async sendMessage(userId, roomId, value, type, parentMessageId = null) {
-    try {
-      const query = `
-        INSERT INTO message (room_id, user_id, value, type, parent_message_id) 
-        VALUES (?, ?, ?, ?, ?)
-      `;
-      
-      const result = await db.query(query, [roomId, userId, value, type, parentMessageId]);
-      
-      const messageQuery = `
-        SELECT 
-          m.id,
-          m.value,
-          m.type,
-          m.created_at,
-          m.parent_message_id,
-          u.first_name as sender_name
-        FROM message m
-        JOIN users u ON m.user_id = u.id
-        WHERE m.id = ?
-      `;
-      
-      const message = await db.query(messageQuery, [result.insertId]);
-      
-      return {
-        id: message[0].id,
-        value: message[0].value,
-        type: message[0].type,
-        createdAt: message[0].created_at,
-        parentMessageId: message[0].parent_message_id,
-        senderName: message[0].sender_name,
-        reactions: {},
-        reacted: null
-      };
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw error;
-    }
-  }
-
-  async getRoomUsers(roomId, limit = 100, offset = 0) {
-    try {
-      const query = 'SELECT user_id FROM user_room WHERE room_id = ? LIMIT ? OFFSET ?';
-      const results = await db.query(query, [roomId, limit, offset]);
-      
-      return results.map(row => row.user_id);
-    } catch (error) {
-      console.error('Error getting room users:', error);
-      throw error;
-    }
-  }
-
-  async getRoomDeviceTokens(roomId, limit = 100, offset = 0) {
-    try {
-      const query = `
-        SELECT DISTINCT udt.device_token 
-        FROM user_room ur
-        JOIN user_device_token udt ON ur.user_id = udt.user_id
-        WHERE ur.room_id = ?
-        LIMIT ? OFFSET ?
-      `;
-      
-      const results = await db.query(query, [roomId, limit, offset]);
-      return results.map(row => row.device_token);
-    } catch (error) {
-      console.error('Error getting room device tokens:', error);
-      throw error;
-    }
-  }
-
-  async addReaction(messageId, userId, value) {
-    try {
-      const query = `
-        INSERT INTO message_reaction (message_id, user_id, value) 
-        VALUES (?, ?, ?) 
-        ON DUPLICATE KEY UPDATE value = VALUES(value)
-      `;
-      
-      await db.query(query, [messageId, userId, value]);
-      
-      return {
-        messageId,
-        userId,
-        value,
-        reacted: true
-      };
-    } catch (error) {
-      console.error('Error adding reaction:', error);
-      throw error;
-    }
-  }
-
-  async listRoomUsers(roomId, page = 0) {
-    try {
-      const limit = parseInt(process.env.PAGE_LIMIT) || 10;
-      const offset = page * limit;
-
-      const query = `
-        SELECT 
-          u.id,
-          u.first_name,
-          u.public_user,
-          up.photo_url
-        FROM user_room ur
-        JOIN users u ON ur.user_id = u.id
-        LEFT JOIN user_photo up ON u.id = up.user_id AND up.photoType = 1
-        WHERE ur.room_id = ? AND u.flagged = 0
-        ORDER BY u.first_name ASC
-        LIMIT ? OFFSET ?
-      `;
-      
-      const results = await db.query(query, [roomId, limit, offset]);
-      
-      return results.map(row => ({
-        id: row.id,
-        firstName: row.first_name,
-        publicUser: row.public_user,
-        profilePhoto: row.photo_url
-      }));
-    } catch (error) {
-      console.error('Error listing room users:', error);
-      throw error;
-    }
-  }
 }
 
 module.exports = new UserService();
