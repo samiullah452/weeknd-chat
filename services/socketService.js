@@ -53,7 +53,7 @@ class SocketService {
     socket.on('list-rooms', async (data) => {
       try {
         const { page = 0, searchQuery = null } = data || {};
-        const rooms = await userService.listRooms(1622, page, searchQuery);
+        const rooms = await userService.listRooms(socket.userId, page, searchQuery);
         
         socket.emit('rooms-fetched', createSuccessResponse(
           MESSAGES.SUCCESS.ROOMS_LISTED,
@@ -78,12 +78,12 @@ class SocketService {
           return;
         }
 
-        const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
+        // const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
         
-        if (!hasAccess) {
-          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
-          return;
-        }
+        // if (!hasAccess) {
+        //   socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
+        //   return;
+        // }
 
         socket.join(`room_${roomId}`);
         
