@@ -71,7 +71,7 @@ class UserService {
           };
 
           return {
-            id: row.id,
+            id: row.roomId,
             name: row.name,
             type: row.room_type,
             createdAt: row.room_created_at,
