@@ -61,7 +61,6 @@ class SocketService {
         ));
 
       } catch (error) {
-        console.error('Error listing rooms:', error);
         socket.emit('error', createErrorResponse(
           MESSAGES.ERROR.FAILED_TO_LIST_ROOMS,
           error.message
@@ -78,18 +77,24 @@ class SocketService {
           return;
         }
 
-        // const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
+        const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
         
-        // if (!hasAccess) {
-        //   socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
-        //   return;
-        // }
+        if (!hasAccess) {
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
+          return;
+        }
 
         socket.join(`room_${roomId}`);
         
         // Get messages for the room
         const messages = await userService.listMessages(roomId, page);
-        
+
+        // Update last_message_id to mark messages as read (only on first page)
+        if (messages.length > 0 && page === 0) {
+          const latestMessageId = messages[0].id;
+          await userService.updateLastMessageRead(socket.userId, roomId, latestMessageId);
+        }
+
         socket.emit('messages-fetched', createSuccessResponse(
           MESSAGES.SUCCESS.MESSAGES_LISTED,
           { roomId, messages, page }

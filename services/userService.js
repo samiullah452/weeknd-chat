@@ -174,6 +174,16 @@ class UserService {
     }
   }
 
+  async updateLastMessageRead(userId, roomId, messageId) {
+    try {
+      const query = 'UPDATE user_room SET last_message_id = ? WHERE user_id = ? AND room_id = ?';
+      await db.query(query, [messageId, userId, roomId]);
+    } catch (error) {
+      console.error('Error updating last message read:', error);
+      throw error;
+    }
+  }
+
 }
 
 module.exports = new UserService();
