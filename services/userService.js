@@ -88,7 +88,7 @@ class UserService {
     }
   }
 
-  async listMessages(roomId, page = 0) {
+  async listMessages(userId, roomId, page = 0) {
     try {
       const limit = parseInt(process.env.PAGE_LIMIT) || 20;
       const offset = page * limit;
@@ -119,6 +119,7 @@ class UserService {
               id: row.user_id,
               firstName: row.first_name
             },
+            isOwn: row.user_id === userId,
             reactions: row.reactions,
             mentions: row.mentions,
             coverURL

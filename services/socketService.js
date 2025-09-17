@@ -87,7 +87,7 @@ class SocketService {
         socket.join(`room_${roomId}`);
         
         // Get messages for the room
-        const messages = await userService.listMessages(roomId, page);
+        const messages = await userService.listMessages(socket.userId, roomId, page);
 
         // Update last_message_id to mark messages as read (only on first page)
         if (messages.length > 0 && page === 0) {
