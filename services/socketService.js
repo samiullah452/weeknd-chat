@@ -101,7 +101,6 @@ class SocketService {
         ));
 
       } catch (error) {
-        console.error('Error joining room:', error);
         socket.emit('error', createErrorResponse(
           MESSAGES.ERROR.FAILED_TO_JOIN_ROOM,
           error.message

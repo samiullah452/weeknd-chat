@@ -110,6 +110,7 @@ class UserService {
             id: row.id,
             type: row.type,
             value: row.value,
+            createdAt: row.created_at,
             parentMessage: row.parent_message ? {
               id: row.parent_message,
               value: row.parent_message_text
