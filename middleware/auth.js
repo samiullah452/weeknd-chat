@@ -10,7 +10,7 @@ class AuthMiddleware {
       if (!token) {
         return next(new Error(MESSAGES.ERROR.AUTH_TOKEN_REQUIRED));
       }
-
+      console.log(process.env.JWT_SECRET)
       const decoded = jwt.verify(token, process.env.JWT_SECRET, {
         algorithms: ['HS512']
       });
