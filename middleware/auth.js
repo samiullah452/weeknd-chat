@@ -12,17 +12,17 @@ class AuthMiddleware {
       }
 
       jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
-        // if (err) {
-        //   return next(new Error(MESSAGES.ERROR.INVALID_TOKEN));
-        // }
+        if (err) {
+          return next(new Error(MESSAGES.ERROR.INVALID_TOKEN));
+        }
 
         try {
-          decoded = {
-            id: 1622,
-            firstName: "kyle",
-            publicUser: 1,
-            hasAccess: true
-          }
+          // decoded = {
+          //   id: 1622,
+          //   firstName: "kyle",
+          //   publicUser: 1,
+          //   hasAccess: true
+          // }
           const userAccess = await userService.checkUserAccess(decoded);
           
           socket.userId = decoded.id;

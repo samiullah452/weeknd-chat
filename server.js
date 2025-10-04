@@ -1,3 +1,5 @@
+const jwt = require('jsonwebtoken');
+
 require('dotenv').config();
 const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
