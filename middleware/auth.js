@@ -16,7 +16,7 @@ class AuthMiddleware {
       // });
 
       try {
-        decoded = {
+        const decoded = {
           id: 1622,
           firstName: "kyle",
           publicUser: 1,
