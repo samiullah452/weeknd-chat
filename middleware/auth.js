@@ -17,12 +17,12 @@ class AuthMiddleware {
         // }
 
         try {
-          // decoded = {
-          //   id: 1622,
-          //   firstName: "kyle",
-          //   publicUser: 1,
-          //   hasAccess: true
-          // }
+          const decoded = {
+            id: 1622,
+            firstName: "kyle",
+            publicUser: 1,
+            hasAccess: true
+          }
           const userAccess = await userService.checkUserAccess(decoded);
           
           socket.userId = decoded.id;
