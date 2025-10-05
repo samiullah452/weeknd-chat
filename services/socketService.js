@@ -168,6 +168,11 @@ class SocketService {
 
         socket.leave(`room_${roomId}`);
 
+        socket.emit('room-left', createSuccessResponse(
+          MESSAGES.SUCCESS.ROOM_LEFT,
+          { roomId }
+        ));
+
       } catch (error) {
         socket.emit('error', createErrorResponse(
           MESSAGES.ERROR.FAILED_TO_LEAVE_ROOM,
