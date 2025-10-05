@@ -9,10 +9,10 @@ class SocketService {
     this.subClient = redisClient.getSubClient();
   }
 
-  async setConnectedUser(userId, socketId) {
+  async setConnectedUser(userId, socketId, roomId = null) {
     try {
       if (this.pubClient) {
-        const userData = JSON.stringify({ socketId, isOnline: true });
+        const userData = JSON.stringify({ socketId, roomId });
         await this.pubClient.hset('connected_users', userId, userData);
       }
     } catch (error) {
@@ -24,10 +24,7 @@ class SocketService {
     try {
       if (this.subClient) {
         const userData = await this.subClient.hget('connected_users', userId);
-        if (userData) {
-          const parsed = JSON.parse(userData);
-          return parsed.isOnline === true;
-        }
+        return userData !== null;
       }
       return false;
     } catch (error) {
@@ -36,20 +33,6 @@ class SocketService {
     }
   }
 
-  async setOnlineStatus(userId, isOnline) {
-    try {
-      if (this.pubClient && this.subClient) {
-        const userData = await this.subClient.hget('connected_users', userId);
-        if (userData) {
-          const parsed = JSON.parse(userData);
-          parsed.isOnline = isOnline;
-          await this.pubClient.hset('connected_users', userId, JSON.stringify(parsed));
-        }
-      }
-    } catch (error) {
-      console.error('Error setting online status in Redis:', error);
-    }
-  }
 
   async removeConnectedUser(userId) {
     try {
@@ -90,20 +73,35 @@ class SocketService {
       }
     });
 
-    socket.on('set-online-status', async (data) => {
+    socket.on('join-room', async (data) => {
       try {
-        const { isOnline } = data;
+        const { roomId } = data;
 
-        if (typeof isOnline !== 'boolean') {
-          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+        if (!roomId) {
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ID_REQUIRED));
           return;
         }
 
-        await this.setOnlineStatus(socket.userId, isOnline);
+        const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
+
+        if (!hasAccess) {
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
+          return;
+        }
+
+        // Update userData with roomId
+        await this.setConnectedUser(socket.userId, socket.id, roomId);
+
+        socket.join(`room_${roomId}`);
+
+        socket.emit('room-joined', createSuccessResponse(
+          MESSAGES.SUCCESS.ROOM_JOINED,
+          { roomId }
+        ));
 
       } catch (error) {
         socket.emit('error', createErrorResponse(
-          MESSAGES.ERROR.FAILED_TO_UPDATE_STATUS,
+          MESSAGES.ERROR.FAILED_TO_JOIN_ROOM,
           error.message
         ));
       }
@@ -185,7 +183,6 @@ class SocketService {
 
         // Update last_message_id to mark messages as read (only on first page)
         if (messages.length > 0 && page === 0) {
-          socket.join(`room_${roomId}`);
           const latestMessageId = messages[0].id;
           await userService.updateLastMessageRead(socket.userId, roomId, latestMessageId);
         }
@@ -407,7 +404,7 @@ class SocketService {
 
         // Send push notifications to offline users
         if (offlineUserIds.length > 0) {
-          notificationService.sendMessageNotification(offlineUserIds, messageData);
+          // notificationService.sendMessageNotification(offlineUserIds, messageData);
         }
 
       } catch (error) {
