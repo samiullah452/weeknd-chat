@@ -181,14 +181,14 @@ class SocketService {
         const { roomId, page = 0 } = data;
 
         if (!roomId) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.ROOM_ID_REQUIRED));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ID_REQUIRED));
           return;
         }
 
         const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
 
         if (!hasAccess) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
           return;
         }
 
@@ -207,7 +207,7 @@ class SocketService {
         }
 
       } catch (error) {
-        socket.emit('error-message', createErrorResponse(
+        socket.emit('error', createErrorResponse(
           MESSAGES.ERROR.FAILED_TO_JOIN_ROOM,
           error.message
         ));
@@ -219,7 +219,7 @@ class SocketService {
         const { messageId, roomId, value, mentions = [] } = data;
 
         if (!messageId || !roomId || !value) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
           return;
         }
 
@@ -227,13 +227,13 @@ class SocketService {
         const { canUpdate, reason, roomId: messageRoomId } = await userService.canUpdateMessage(socket.userId, messageId);
 
         if (!canUpdate) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.UPDATE_PERMISSION_DENIED, reason));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.UPDATE_PERMISSION_DENIED, reason));
           return;
         }
 
         // Verify roomId matches
         if (messageRoomId !== roomId) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
           return;
         }
 
@@ -247,7 +247,7 @@ class SocketService {
         ));
 
       } catch (error) {
-        socket.emit('error-message', createErrorResponse(
+        socket.emit('error', createErrorResponse(
           MESSAGES.ERROR.FAILED_TO_UPDATE_MESSAGE,
           error.message
         ));
@@ -259,7 +259,7 @@ class SocketService {
         const { messageId, value, roomId } = data;
 
         if (!messageId || !value || !roomId) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
           return;
         }
 
@@ -267,7 +267,7 @@ class SocketService {
         const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
 
         if (!hasAccess) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
           return;
         }
 
@@ -281,7 +281,7 @@ class SocketService {
         ));
 
       } catch (error) {
-        socket.emit('error-message', createErrorResponse(
+        socket.emit('error', createErrorResponse(
           MESSAGES.ERROR.FAILED_TO_ADD_REACTION,
           error.message
         ));
@@ -293,7 +293,7 @@ class SocketService {
         const { messageId, value, roomId } = data;
 
         if (!messageId || !value || !roomId) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
           return;
         }
 
@@ -301,7 +301,7 @@ class SocketService {
         const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
 
         if (!hasAccess) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
           return;
         }
 
@@ -315,7 +315,7 @@ class SocketService {
         ));
 
       } catch (error) {
-        socket.emit('error-message', createErrorResponse(
+        socket.emit('error', createErrorResponse(
           MESSAGES.ERROR.FAILED_TO_DELETE_REACTION,
           error.message
         ));
@@ -327,7 +327,7 @@ class SocketService {
         const { messageId, roomId } = data;
 
         if (!messageId || !roomId) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
           return;
         }
 
@@ -335,13 +335,13 @@ class SocketService {
         const { canDelete, reason, roomId: messageRoomId } = await userService.canDeleteMessage(socket.userId, messageId);
 
         if (!canDelete) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.DELETE_PERMISSION_DENIED, reason));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.DELETE_PERMISSION_DENIED, reason));
           return;
         }
 
         // Verify roomId matches
         if (messageRoomId !== roomId) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
           return;
         }
 
@@ -355,7 +355,7 @@ class SocketService {
         ));
 
       } catch (error) {
-        socket.emit('error-message', createErrorResponse(
+        socket.emit('error', createErrorResponse(
           MESSAGES.ERROR.FAILED_TO_DELETE_MESSAGE,
           error.message
         ));
@@ -367,13 +367,13 @@ class SocketService {
         const { id, type, value, parentMessageId, roomId, mentions = [], media = null } = data;
 
         if (!type || !value || !roomId || !id) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
           return;
         }
 
         const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
         if (!hasAccess) {
-          socket.emit('error-message', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
           return;
         }
 
@@ -431,7 +431,7 @@ class SocketService {
         }
 
       } catch (error) {
-        socket.emit('error-message', createErrorResponse(
+        socket.emit('error', createErrorResponse(
           MESSAGES.ERROR.FAILED_TO_SEND_MESSAGE,
           error.message
         ));
