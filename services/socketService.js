@@ -1,64 +1,26 @@
 const userService = require('./userService');
 const notificationService = require('./notificationService');
 const { MESSAGES, createSuccessResponse, createErrorResponse } = require('../constants/messages');
-const redisClient = require('../config/redis');
 
 class SocketService {
-  constructor() {
-    this.pubClient = redisClient.getPubClient();
-    this.subClient = redisClient.getSubClient();
-  }
-
-  async setConnectedUser(userId, socketId, roomId = null) {
+  async getUserConnectionData(userId, io) {
     try {
-      if (this.pubClient) {
-        const userData = JSON.stringify({ socketId, roomId });
-        await this.pubClient.hset('connected_users', userId, userData);
-      }
-    } catch (error) {
-      console.error('Error setting connected user in Redis:', error);
-    }
-  }
+      // Use Socket.IO's built-in method to fetch sockets across all instances
+      const sockets = await io.in(`user_${userId}`).fetchSockets();
 
-  async isOnline(userId) {
-    try {
-      if (this.subClient) {
-        const userData = await this.subClient.hget('connected_users', userId);
-        return userData !== null;
+      if (sockets.length > 0) {
+        const userSocket = sockets[0];
+        return {
+          isOnline: true,
+          socketId: userSocket.id,
+          roomId: userSocket.data.currentRoomId || null
+        };
       }
-      return false;
-    } catch (error) {
-      console.error('Error checking if user is online from Redis:', error);
-      return false;
-    }
-  }
 
-  async getUserConnectionData(userId) {
-    try {
-      console.log("ID is: ", userId);
-      if (this.subClient) {
-        const userData = await this.subClient.hget('connected_users', userId);
-        console.log(userData);
-        if (userData) {
-          const { socketId, roomId } = JSON.parse(userData);
-          return { isOnline: true, socketId, roomId };
-        }
-      }
       return { isOnline: false, socketId: null, roomId: null };
     } catch (error) {
-      console.error('Error getting user connection data from Redis:', error);
+      console.error('Error getting user connection data:', error);
       return { isOnline: false, socketId: null, roomId: null };
-    }
-  }
-
-
-  async removeConnectedUser(userId) {
-    try {
-      if (this.pubClient) {
-        await this.pubClient.hdel('connected_users', userId);
-      }
-    } catch (error) {
-      console.error('Error removing connected user from Redis:', error);
     }
   }
 
@@ -67,7 +29,8 @@ class SocketService {
 
     socket.join(`user_${socket.userId}`);
 
-    this.setConnectedUser(socket.userId, socket.id);
+    // Initialize socket data
+    socket.data.currentRoomId = null;
 
     socket.emit('connected', createSuccessResponse(
       MESSAGES.SUCCESS.CONNECTED,
@@ -108,8 +71,8 @@ class SocketService {
           return;
         }
 
-        // Update userData with roomId
-        await this.setConnectedUser(socket.userId, socket.id, roomId);
+        // Store current room in socket data
+        socket.data.currentRoomId = roomId;
 
         socket.join(`room_${roomId}`);
 
@@ -166,8 +129,8 @@ class SocketService {
           return;
         }
 
-        // Clear the roomId from connected user data
-        await this.setConnectedUser(socket.userId, socket.id, null);
+        // Clear the roomId from socket data
+        socket.data.currentRoomId = null;
 
         socket.leave(`room_${roomId}`);
 
@@ -408,8 +371,8 @@ class SocketService {
           if (membersInboxData.length === 0) break;
 
           for (const { userId, data } of membersInboxData) {
-            // Get user connection data (online status and current roomId) in a single Redis call
-            const { isOnline, roomId: userCurrentRoomId } = await this.getUserConnectionData(userId);
+            // Get user connection data (online status and current roomId)
+            const { isOnline, roomId: userCurrentRoomId } = await this.getUserConnectionData(userId, io);
 
             if (isOnline) {
               // If user is in the same room, update last_message_read and set unreadCount to 0
@@ -448,9 +411,7 @@ class SocketService {
 
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
-      if (socket.userId) {
-        this.removeConnectedUser(socket.userId);
-      }
+      // Socket.IO automatically handles cleanup, no manual removal needed
     });
   }
 }

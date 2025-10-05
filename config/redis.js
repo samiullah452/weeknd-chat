@@ -92,7 +92,7 @@ class RedisClient {
         await this.pubClient.disconnect();
         console.log('Redis pub client disconnected');
       }
-      
+
       if (this.subClient) {
         await this.subClient.disconnect();
         console.log('Redis sub client disconnected');
