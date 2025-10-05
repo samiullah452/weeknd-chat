@@ -411,6 +411,7 @@ class SocketService {
             if (isOnline) {
               // If user is in the same room, update last_message_read and set unreadCount to 0
               if (userCurrentRoomId === roomId) {
+                console.log("Message id is: ", messageId);
                 userService.updateLastMessageRead(userId, roomId, messageId);
                 data.unreadCount = 0;
               }
