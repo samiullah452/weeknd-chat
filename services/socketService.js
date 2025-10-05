@@ -33,6 +33,22 @@ class SocketService {
     }
   }
 
+  async getUserConnectionData(userId) {
+    try {
+      if (this.subClient) {
+        const userData = await this.subClient.hget('connected_users', userId);
+        if (userData) {
+          const { socketId, roomId } = JSON.parse(userData);
+          return { isOnline: true, socketId, roomId };
+        }
+      }
+      return { isOnline: false, socketId: null, roomId: null };
+    } catch (error) {
+      console.error('Error getting user connection data from Redis:', error);
+      return { isOnline: false, socketId: null, roomId: null };
+    }
+  }
+
 
   async removeConnectedUser(userId) {
     try {
@@ -146,6 +162,9 @@ class SocketService {
           socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ID_REQUIRED));
           return;
         }
+
+        // Clear the roomId from connected user data
+        await this.setConnectedUser(socket.userId, socket.id, null);
 
         socket.leave(`room_${roomId}`);
 
@@ -381,21 +400,25 @@ class SocketService {
           if (membersInboxData.length === 0) break;
 
           for (const { userId, data } of membersInboxData) {
-            // Check if user is online
-            const isUserOnline = await this.isOnline(userId);
+            // Get user connection data (online status and current roomId) in a single Redis call
+            const { isOnline, roomId: userCurrentRoomId } = await this.getUserConnectionData(userId);
 
-            // Update last_message_id and set unreadCount to 0 for online users
-            if (isUserOnline) {
-              userService.updateLastMessageRead(userId, roomId, messageId);
-              data.unreadCount = 0;
+            if (isOnline) {
+              // If user is in the same room, update last_message_read and set unreadCount to 0
+              if (userCurrentRoomId === roomId) {
+                userService.updateLastMessageRead(userId, roomId, messageId);
+                data.unreadCount = 0;
+              }
+              // If user is online but in a different room, increment unreadCount
+              // (unreadCount from data already has the correct value from getRoomMembersInboxData)
+
+              io.to(`user_${userId}`).emit('update-inbox', createSuccessResponse(
+                MESSAGES.SUCCESS.INBOX_UPDATED,
+                data
+              ));
             } else {
               offlineUserIds.push(userId);
             }
-
-            io.to(`user_${userId}`).emit('update-inbox', createSuccessResponse(
-              MESSAGES.SUCCESS.INBOX_UPDATED,
-              data
-            ));
           }
 
           offset += limit;
