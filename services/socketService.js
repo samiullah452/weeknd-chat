@@ -417,7 +417,7 @@ class SocketService {
               }
               // If user is online but in a different room, increment unreadCount
               // (unreadCount from data already has the correct value from getRoomMembersInboxData)
-
+              console.log(`user_${userId}`)
               io.to(`user_${userId}`).emit('update-inbox', createSuccessResponse(
                 MESSAGES.SUCCESS.INBOX_UPDATED,
                 data
