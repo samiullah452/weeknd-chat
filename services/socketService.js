@@ -63,8 +63,9 @@ class SocketService {
   handleConnection(socket, io) {
     console.log('User connected:', socket.id, 'User ID:', socket.userId);
 
-    this.setConnectedUser(socket.userId, socket.id);
     socket.join(`user_${socket.userId}`);
+
+    this.setConnectedUser(socket.userId, socket.id);
 
     socket.emit('connected', createSuccessResponse(
       MESSAGES.SUCCESS.CONNECTED,
@@ -411,13 +412,12 @@ class SocketService {
             if (isOnline) {
               // If user is in the same room, update last_message_read and set unreadCount to 0
               if (userCurrentRoomId === roomId) {
-                console.log("Message id is: ", messageId);
                 userService.updateLastMessageRead(userId, roomId, messageId);
                 data.unreadCount = 0;
               }
               // If user is online but in a different room, increment unreadCount
               // (unreadCount from data already has the correct value from getRoomMembersInboxData)
-              console.log(`user_${userId}`)
+
               io.to(`user_${userId}`).emit('update-inbox', createSuccessResponse(
                 MESSAGES.SUCCESS.INBOX_UPDATED,
                 data
