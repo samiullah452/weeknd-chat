@@ -68,7 +68,8 @@ class UserService {
           const lastMessage = {
             text: row.last_message_text,
             type: row.last_message_type,
-            createdAt: row.last_message_date
+            createdAt: row.last_message_date,
+            firstName: row.last_message_user
           };
 
           return {
