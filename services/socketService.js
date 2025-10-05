@@ -35,8 +35,10 @@ class SocketService {
 
   async getUserConnectionData(userId) {
     try {
+      console.log("ID is: ", userId);
       if (this.subClient) {
         const userData = await this.subClient.hget('connected_users', userId);
+        console.log(userData);
         if (userData) {
           const { socketId, roomId } = JSON.parse(userData);
           return { isOnline: true, socketId, roomId };
