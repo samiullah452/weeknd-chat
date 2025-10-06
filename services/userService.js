@@ -455,8 +455,8 @@ class UserService {
     try {
       await connection.beginTransaction();
 
-      // Update message value
-      const updateQuery = 'UPDATE message SET value = ? WHERE id = ?';
+      // Update message value and set is_edited flag
+      const updateQuery = 'UPDATE message SET value = ?, is_edited = 1 WHERE id = ?';
       await connection.execute(updateQuery, [newValue, messageId]);
 
       // Delete old mentions

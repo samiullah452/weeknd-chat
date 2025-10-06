@@ -261,10 +261,13 @@ class SocketService {
         // Update the message
         await userService.updateMessage(messageId, value, mentions);
 
+        // Fetch the updated message using listMessages
+        const [updatedMessage] = await userService.listMessages(roomId, 0, messageId);
+
         // Emit message-updated to room
         io.to(`room_${roomId}`).emit('message-updated', createSuccessResponse(
           MESSAGES.SUCCESS.MESSAGE_UPDATED,
-          { messageId, roomId, value, mentions }
+          updatedMessage
         ));
 
         // If this was the last message, send update-inbox to all room members
