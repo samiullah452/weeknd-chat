@@ -302,7 +302,6 @@ class SocketService {
           return;
         }
 
-        console.log(socket.userId, messageId)
         // Check if user can delete the message
         const { canDelete, reason, roomId: messageRoomId } = await userService.canDeleteMessage(socket.userId, messageId);
 

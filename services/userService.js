@@ -66,6 +66,7 @@ class UserService {
           const coverURL = await this.processCoverURL(row, `room ${row.id}`);
           
           const lastMessage = {
+            id: row.last_message_id,
             text: row.last_message_text,
             type: row.last_message_type,
             createdAt: row.last_message_date,
