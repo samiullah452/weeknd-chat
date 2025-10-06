@@ -321,7 +321,7 @@ class UserService {
       if (mentions && mentions.length > 0) {
         const values = mentions.map(() => '(?, ?)').join(', ');
         const insertMentionQuery = `INSERT INTO message_mention (user_id, message_id) VALUES ${values}`;
-        const params = mentions.flatMap(mentionUserId => [mentionUserId, messageId]);
+        const params = mentions.flatMap(m => [parseInt(Object.keys(m)[0]), messageId]);
 
         await connection.execute(insertMentionQuery, params);
       }
@@ -487,7 +487,7 @@ class UserService {
       if (mentions && mentions.length > 0) {
         const values = mentions.map(() => '(?, ?)').join(', ');
         const insertMentionQuery = `INSERT INTO message_mention (user_id, message_id) VALUES ${values}`;
-        const params = mentions.flatMap(mentionUserId => [mentionUserId, messageId]);
+        const params = mentions.flatMap(m => [parseInt(Object.keys(m)[0]), messageId]);
 
         await connection.execute(insertMentionQuery, params);
       }
