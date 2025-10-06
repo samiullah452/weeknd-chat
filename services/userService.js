@@ -66,7 +66,6 @@ class UserService {
           const coverURL = await this.processCoverURL(row, `room ${row.id}`);
           
           const lastMessage = {
-            id: row.last_message_id,
             text: row.last_message_text,
             type: row.last_message_type,
             createdAt: row.last_message_date,
@@ -366,6 +365,25 @@ class UserService {
       return { canDelete: false, reason: 'Not authorized to delete this message' };
     } catch (error) {
       console.error('Error checking delete message permission:', error);
+      throw error;
+    }
+  }
+
+  async isLastMessageInRoom(messageId, roomId) {
+    try {
+      const query = `
+        SELECT id FROM message
+        WHERE room_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+      const results = await db.query(query, [roomId]);
+
+      if (results.length === 0) return false;
+
+      return results[0].id === messageId;
+    } catch (error) {
+      console.error('Error checking if message is last in room:', error);
       throw error;
     }
   }

@@ -24,6 +24,53 @@ class SocketService {
     }
   }
 
+  async sendInboxUpdate(roomId, messageId, messageData, io, sendPushNotification = false) {
+    try {
+      let offset = 0;
+      const limit = 100;
+      const offlineUserIds = [];
+
+      while (true) {
+        const membersInboxData = await userService.getRoomMembersInboxData(roomId, offset, limit);
+
+        if (membersInboxData.length === 0) break;
+
+        for (const { userId, data } of membersInboxData) {
+          // Get user connection data (online status and current roomId)
+          const { isOnline, roomId: userCurrentRoomId } = await this.getUserConnectionData(userId, io);
+
+          if (isOnline) {
+            // If user is in the same room and messageId is provided, update last_message_read and set unreadCount to 0
+            if (messageId && userCurrentRoomId === roomId) {
+              userService.updateLastMessageRead(userId, roomId, messageId);
+              data.unreadCount = 0;
+            }
+            // If user is online but in a different room, increment unreadCount
+            // (unreadCount from data already has the correct value from getRoomMembersInboxData)
+
+            io.to(`user_${userId}`).emit('update-inbox', createSuccessResponse(
+              MESSAGES.SUCCESS.INBOX_UPDATED,
+              data
+            ));
+          } else if (sendPushNotification) {
+            offlineUserIds.push(userId);
+          }
+        }
+
+        offset += limit;
+        if (membersInboxData.length < limit) break;
+      }
+
+      // Send push notifications to offline users if enabled
+      if (offlineUserIds.length > 0) {
+        // notificationService.sendMessageNotification(offlineUserIds, messageData);
+      }
+    } catch (error) {
+      console.error('Error sending inbox update:', error);
+      throw error;
+    }
+  }
+
   handleConnection(socket, io) {
     console.log('User connected:', socket.id, 'User ID:', socket.userId);
 
@@ -208,6 +255,9 @@ class SocketService {
           return;
         }
 
+        // Check if this is the last message in the room before updating
+        const isLastMessage = await userService.isLastMessageInRoom(messageId, roomId);
+
         // Update the message
         await userService.updateMessage(messageId, value, mentions);
 
@@ -216,6 +266,11 @@ class SocketService {
           MESSAGES.SUCCESS.MESSAGE_UPDATED,
           { messageId, roomId, value, mentions }
         ));
+
+        // If this was the last message, send update-inbox to all room members
+        if (isLastMessage) {
+          await this.sendInboxUpdate(roomId, null, null, io, false);
+        }
 
       } catch (error) {
         socket.emit('error', createErrorResponse(
@@ -316,6 +371,9 @@ class SocketService {
           return;
         }
 
+        // Check if this is the last message in the room before deleting
+        const isLastMessage = await userService.isLastMessageInRoom(messageId, roomId);
+
         // Delete the message
         await userService.deleteMessage(messageId);
 
@@ -324,6 +382,11 @@ class SocketService {
           MESSAGES.SUCCESS.MESSAGE_DELETED,
           { messageId, roomId }
         ));
+
+        // If this was the last message, send update-inbox to all room members
+        if (isLastMessage) {
+          await this.sendInboxUpdate(roomId, null, null, io, false);
+        }
 
       } catch (error) {
         socket.emit('error', createErrorResponse(
@@ -360,46 +423,8 @@ class SocketService {
           messageData
         ));
 
-        // Emit update-inbox to all room members with pagination
-        let offset = 0;
-        const limit = 100;
-        const offlineUserIds = [];
-
-        while (true) {
-          const membersInboxData = await userService.getRoomMembersInboxData(roomId, offset, limit);
-
-          if (membersInboxData.length === 0) break;
-
-          for (const { userId, data } of membersInboxData) {
-            // Get user connection data (online status and current roomId)
-            const { isOnline, roomId: userCurrentRoomId } = await this.getUserConnectionData(userId, io);
-
-            if (isOnline) {
-              // If user is in the same room, update last_message_read and set unreadCount to 0
-              if (userCurrentRoomId === roomId) {
-                userService.updateLastMessageRead(userId, roomId, messageId);
-                data.unreadCount = 0;
-              }
-              // If user is online but in a different room, increment unreadCount
-              // (unreadCount from data already has the correct value from getRoomMembersInboxData)
-
-              io.to(`user_${userId}`).emit('update-inbox', createSuccessResponse(
-                MESSAGES.SUCCESS.INBOX_UPDATED,
-                data
-              ));
-            } else {
-              offlineUserIds.push(userId);
-            }
-          }
-
-          offset += limit;
-          if (membersInboxData.length < limit) break;
-        }
-
-        // Send push notifications to offline users
-        if (offlineUserIds.length > 0) {
-          // notificationService.sendMessageNotification(offlineUserIds, messageData);
-        }
+        // Emit update-inbox to all room members
+        await this.sendInboxUpdate(roomId, messageId, messageData, io, true);
 
       } catch (error) {
         socket.emit('error', createErrorResponse(
