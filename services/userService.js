@@ -434,7 +434,7 @@ class UserService {
       const message = results[0];
 
       // Only text messages can be updated
-      if (message.type !== 'text') {
+      if (message.type !== 'TEXT') {
         return { canUpdate: false, reason: 'Only text messages can be updated' };
       }
 
