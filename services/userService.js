@@ -322,7 +322,7 @@ class UserService {
         const values = mentions.map(() => '(?, ?)').join(', ');
         const insertMentionQuery = `INSERT INTO message_mention (user_id, message_id) VALUES ${values}`;
         const params = mentions.flatMap(m => [parseInt(Object.keys(m)[0]), messageId]);
-
+        console.log(params)
         await connection.execute(insertMentionQuery, params);
       }
 
