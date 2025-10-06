@@ -109,6 +109,7 @@ class UserService {
           return {
             id: row.id,
             roomId: row.room_id,
+            isEdited: row.is_edited,
             type: row.type,
             value: row.value,
             createdAt: row.created_at,
