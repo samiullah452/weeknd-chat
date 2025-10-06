@@ -187,25 +187,44 @@ class UserService {
     }
   }
 
-  async getRoomMembers(roomId, page) {
+  async getRoomMembers(roomId, page, searchQuery = null) {
     try {
       const limit = parseInt(process.env.PAGE_LIMIT) || 20;
       const offset = page * limit;
 
+      let whereCondition = `WHERE ur.room_id = ?`;
+      const queryParams = [roomId];
+
+      if (searchQuery) {
+        whereCondition += ` AND u.first_name LIKE ?`;
+        queryParams.push(`${searchQuery}%`);
+      }
+
       const query = `
-        SELECT u.id, u.firstName, u.profilePhoto, ur.is_operator
+        SELECT u.id, u.first_name, ur.is_operator,
+               CONCAT(up.id, '|photo|', up.file_name, '|', up.user_id) as cover_data
         FROM user_room ur
-        JOIN users u ON ur.user_id = u.id
-        WHERE ur.room_id = ?
+        JOIN user u ON ur.user_id = u.id
+        LEFT JOIN user_photo up ON u.id = up.user_id
+        ${whereCondition}
         LIMIT ${limit} OFFSET ${offset}
       `;
-      const results = await db.query(query, [roomId]);
-      return results.map(row => ({
-        id: row.id,
-        firstName: row.firstName,
-        profilePhoto: row.profilePhoto,
-        isOperator: row.is_operator
-      }));
+      const results = await db.query(query, queryParams);
+
+      const members = await Promise.all(
+        results.map(async (row) => {
+          const profilePhoto = await this.processCoverURL(row, `user ${row.id}`);
+
+          return {
+            id: row.id,
+            firstName: row.first_name,
+            profilePhoto,
+            isOperator: row.is_operator
+          };
+        })
+      );
+
+      return members;
     } catch (error) {
       console.error('Error getting room members:', error);
       throw error;
