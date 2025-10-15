@@ -13,7 +13,6 @@ class AuthMiddleware {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET, {
         algorithms: ['HS512'],
-        complete: true
       });
       console.log(decoded)
       try {
