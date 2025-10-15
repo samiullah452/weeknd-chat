@@ -5,7 +5,7 @@ const { MESSAGES } = require('../constants/messages');
 class AuthMiddleware {
   static async authenticateSocket(socket, next) {
     try {
-      const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace('Bearer ', '');
+      const token = socket.handshake.auth?.token?.replace('Bearer ', '') || socket.handshake.headers?.authorization?.replace('Bearer ', '');
       
       if (!token) {
         return next(new Error(MESSAGES.ERROR.AUTH_TOKEN_REQUIRED));
