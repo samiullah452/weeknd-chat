@@ -11,18 +11,20 @@ class AuthMiddleware {
         return next(new Error(MESSAGES.ERROR.AUTH_TOKEN_REQUIRED));
       }
 
-      // const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-      //   algorithms: ['HS512'],
-      //   complete: true
-      // });
+      console.log("key is: ", process.env.JWT_SECRET)
+      console.log(token)
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+        algorithms: ['HS512'],
+        complete: true
+      });
 
       try {
-        const decoded = {
-          id: 1622,
-          firstName: "kyle",
-          publicUser: 1,
-          hasAccess: true
-        }
+        // const decoded = {
+        //   id: 1622,
+        //   firstName: "kyle",
+        //   publicUser: 1,
+        //   hasAccess: true
+        // }
         const userAccess = await userService.checkUserAccess(decoded);
         
         socket.userId = decoded.id;
