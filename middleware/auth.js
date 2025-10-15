@@ -11,13 +11,11 @@ class AuthMiddleware {
         return next(new Error(MESSAGES.ERROR.AUTH_TOKEN_REQUIRED));
       }
 
-      console.log("key is: ", process.env.JWT_SECRET)
-      console.log(token)
       const decoded = jwt.verify(token, process.env.JWT_SECRET, {
         algorithms: ['HS512'],
         complete: true
       });
-
+      console.log(decoded)
       try {
         // const decoded = {
         //   id: 1622,
