@@ -14,15 +14,12 @@ class AuthMiddleware {
       const decoded = jwt.verify(token, process.env.JWT_SECRET, {
         algorithms: ['HS512'],
       });
-      console.log(decoded)
+
       try {
-        // const decoded = {
-        //   id: 1622,
-        //   firstName: "kyle",
-        //   publicUser: 1,
-        //   hasAccess: true
-        // }
-        const userAccess = await userService.checkUserAccess(decoded);
+
+        const userAccess = await userService.checkUserAccess({
+          id: decoded.jti
+        });
         
         socket.userId = decoded.id;
         socket.user = userAccess;
