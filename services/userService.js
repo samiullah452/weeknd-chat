@@ -103,7 +103,7 @@ class UserService {
     }
   }
 
-  async listMessages(roomId, page = 0, messageId = null) {
+  async listMessages(roomId, page = 0, messageId = null, userId = null) {
     try {
       const limit = parseInt(process.env.PAGE_LIMIT) || 20;
       const offset = page * limit;
@@ -113,12 +113,28 @@ class UserService {
         : `SELECT * FROM message_info WHERE room_id = ? ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
 
       const results = await db.query(query, messageId ? [roomId, messageId] : [roomId]);
-      
+
       // Process results in parallel with error handling for each message
       const messages = await Promise.all(
         results.map(async (row) => {
           const coverURL = await this.processCoverURL(row, `message ${row.id}`);
-          
+
+          // Process reactions: convert to counts and get myReactions
+          let reactionsWithCounts = {};
+          let myReactions = [];
+
+          if (row.reactions) {
+            // row.reactions is already a MySQL JSON object
+            for (const [emoji, userIds] of Object.entries(row.reactions)) {
+              reactionsWithCounts[emoji] = Array.isArray(userIds) ? userIds.length : 0;
+
+              // Check if userId exists in the reaction's user list
+              if (userId && Array.isArray(userIds) && userIds.includes(userId)) {
+                myReactions.push(emoji);
+              }
+            }
+          }
+
           return {
             id: row.id,
             roomId: row.room_id,
@@ -134,7 +150,8 @@ class UserService {
               id: row.user_id,
               firstName: row.first_name
             },
-            reactions: row.reactions,
+            reactions: reactionsWithCounts,
+            myReactions: myReactions,
             mentions: row.mentions,
             coverURL
           };

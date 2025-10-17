@@ -211,7 +211,7 @@ class SocketService {
         }
 
         // Get messages for the room
-        const messages = await userService.listMessages(roomId, page);
+        const messages = await userService.listMessages(roomId, page, null, socket.userId);
 
         socket.emit('messages-fetched', createSuccessResponse(
           MESSAGES.SUCCESS.MESSAGES_LISTED,
@@ -262,7 +262,7 @@ class SocketService {
         await userService.updateMessage(messageId, value, mentions);
 
         // Fetch the updated message using listMessages
-        const [updatedMessage] = await userService.listMessages(roomId, 0, messageId);
+        const [updatedMessage] = await userService.listMessages(roomId, 0, messageId, socket.userId);
 
         // Emit message-updated to room
         io.to(`room_${roomId}`).emit('message-updated', createSuccessResponse(
@@ -416,7 +416,7 @@ class SocketService {
 
         const messageId = await userService.insertMessage(socket.userId, type, value, parentMessageId, roomId, mentions, media);
 
-        const [messageData] = await userService.listMessages(roomId, 0, messageId);
+        const [messageData] = await userService.listMessages(roomId, 0, messageId, socket.userId);
 
         messageData.prevId = id;
 
