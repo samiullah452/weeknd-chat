@@ -49,7 +49,7 @@ class UserService {
         whereCondition += ` AND u.room_id = ?`;
         queryParams.push(roomId);
       } else if (searchQuery) {
-        whereCondition += ` AND u.name like ?`;
+        whereCondition += ` AND SUBSTRING_INDEX(name_data, '|', 1) LIKE ?`;
         queryParams.push(`${searchQuery}%`);
       }
 
