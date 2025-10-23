@@ -402,8 +402,8 @@ class UserService {
 
       const message = results[0];
       // User can delete if they are the creator OR they are an operator in the room
-      const isCreator = message.user_id === userId;
-      const isOperator = message.is_operator === 1;
+      const isCreator = message.user_id == userId;
+      const isOperator = message.is_operator == 1;
 
       if (isCreator || isOperator) {
         return { canDelete: true, roomId: message.room_id };
