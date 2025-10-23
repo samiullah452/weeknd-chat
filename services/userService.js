@@ -50,7 +50,7 @@ class UserService {
         queryParams.push(roomId);
       } else if (searchQuery) {
         whereCondition += ` AND SUBSTRING_INDEX(name_data, '|', 1) LIKE ?`;
-        queryParams.push(`${searchQuery}%`);
+        queryParams.push(`%${searchQuery}%`);
       }
 
       // Optimized query using CTEs instead of LATERAL JOINs
