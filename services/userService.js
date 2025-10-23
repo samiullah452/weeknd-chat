@@ -389,8 +389,6 @@ class UserService {
 
   async canDeleteMessage(userId, messageId) {
     try {
-      console.log("messageId:" , messageId);
-      console.log("userId: ", userId)
       const query = `
         SELECT m.user_id, m.room_id, ur.is_operator
         FROM message m
@@ -398,13 +396,11 @@ class UserService {
         WHERE m.id = ?
       `;
       const results = await db.query(query, [userId, messageId]);
-      console.log("len: ", results.length)
       if (results.length === 0) {
         return { canDelete: false, reason: 'Message not found' };
       }
 
       const message = results[0];
-      console.log("Message: ", message.user_id)
       // User can delete if they are the creator OR they are an operator in the room
       const isCreator = message.user_id === userId;
       const isOperator = message.is_operator === 1;
