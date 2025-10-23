@@ -363,10 +363,15 @@ class SocketService {
         // Check if user can delete the message
         const { canDelete, reason, roomId: messageRoomId } = await userService.canDeleteMessage(socket.userId, messageId);
 
+        console.log("Can Delete: ", canDelete);
+
         if (!canDelete) {
           socket.emit('error', createErrorResponse(MESSAGES.ERROR.DELETE_PERMISSION_DENIED, reason));
           return;
         }
+
+        console.log("MessageRoomId: ", messageRoomId )
+        console.log("RoomId: ", roomId )
 
         // Verify roomId matches
         if (messageRoomId !== roomId) {
