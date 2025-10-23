@@ -401,6 +401,7 @@ class UserService {
       }
 
       const message = results[0];
+
       // User can delete if they are the creator OR they are an operator in the room
       const isCreator = message.user_id == userId;
       const isOperator = message.is_operator == 1;
@@ -486,7 +487,7 @@ class UserService {
       }
 
       // Only the creator can update the message
-      if (message.user_id === userId) {
+      if (message.user_id == userId) {
         return { canUpdate: true, roomId: message.room_id };
       }
 
