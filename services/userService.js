@@ -281,17 +281,31 @@ class UserService {
             ? await this.processCoverURL(row, `room ${row.id}`)
             : sharedCoverURL;
 
+          // Extract entity_id and name from name_data (format: id|name)
+          let entityId = null;
+          let name = null;
+
+          if (row.name_data) {
+            const nameParts = row.name_data.split('|');
+            if (nameParts.length >= 2) {
+              entityId = nameParts[0];
+              name = nameParts[1];
+            }
+          }
           const lastMessage = {
             text: row.last_message_text,
             type: row.last_message_type,
-            createdAt: row.last_message_date
+            createdAt: row.last_message_date,
+            firstName: row.last_message_user
+
           };
 
           return {
             userId: row.user_id,
             data: {
               id: row.room_id,
-              name: row.name,
+              name: name,
+              entityId: entityId,
               type: row.room_type,
               createdAt: row.room_created_at,
               unreadCount: row.unreadCount,
