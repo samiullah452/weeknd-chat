@@ -21,7 +21,7 @@ class AuthMiddleware {
           id: decoded.jti
         });
         
-        socket.userId = decoded.jti;
+        socket.userId = parseInt(decoded.jti);
         socket.user = userAccess;
         next();
       } catch (userError) {

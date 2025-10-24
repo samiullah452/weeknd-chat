@@ -103,7 +103,7 @@ class UserService {
     }
   }
 
-  async listMessages(roomId, page = 0, messageId = null, userId = null) {
+  async listMessages(roomId, page = 0, messageId = null) {
     try {
       const limit = parseInt(process.env.PAGE_LIMIT) || 20;
       const offset = page * limit;
@@ -445,7 +445,7 @@ class UserService {
 
   async addReaction(messageId, userId, value) {
     try {
-      const query = 'INSERT INTO message_reaction (message_id, user_id, value) VALUES (?, ?, ?)';
+      const query = 'INSERT IGNORE INTO message_reaction (message_id, user_id, value) VALUES (?, ?, ?)';
       await db.query(query, [messageId, userId, value]);
     } catch (error) {
       console.error('Error adding reaction:', error);
