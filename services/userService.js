@@ -119,22 +119,6 @@ class UserService {
         results.map(async (row) => {
           const coverURL = await this.processCoverURL(row, `message ${row.id}`);
 
-          // Process reactions: convert to counts and get myReactions
-          let reactionsWithCounts = {};
-          let myReactions = [];
-
-          if (row.reactions) {
-            // row.reactions is already a MySQL JSON object
-            for (const [emoji, userIds] of Object.entries(row.reactions)) {
-              reactionsWithCounts[emoji] = Array.isArray(userIds) ? userIds.length : 0;
-
-              // Check if userId exists in the reaction's user list
-              if (userId && Array.isArray(userIds) && userIds.includes(userId)) {
-                myReactions.push(emoji);
-              }
-            }
-          }
-
           return {
             id: row.id,
             roomId: row.room_id,
@@ -150,8 +134,7 @@ class UserService {
               id: row.user_id,
               firstName: row.first_name
             },
-            reactions: reactionsWithCounts,
-            myReactions: myReactions,
+            reactions: item.reactions,
             mentions: row.mentions,
             coverURL
           };
