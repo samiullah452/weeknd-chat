@@ -134,7 +134,7 @@ class UserService {
               id: row.user_id,
               firstName: row.first_name
             },
-            reactions: item.reactions,
+            reactions: row.reactions,
             mentions: row.mentions,
             coverURL
           };
