@@ -570,7 +570,7 @@ class UserService {
           };
         })
       );
-
+      console.log(users)
       return users;
     } catch (error) {
       console.error('Error listing reaction users:', error);
