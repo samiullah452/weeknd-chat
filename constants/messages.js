@@ -12,7 +12,9 @@ const MESSAGES = {
     REACTION_DELETED: 'Reaction deleted successfully',
     INBOX_UPDATED: 'Inbox updated successfully',
     ONLINE_STATUS_UPDATED: 'Online status updated successfully',
-    MEMBERS_LISTED: 'Members retrieved successfully'
+    MEMBERS_LISTED: 'Members retrieved successfully',
+    REACTION_USERS_LISTED: 'Reaction users listed successfully'
+
   },
 
   ERROR: {
@@ -34,9 +36,9 @@ const MESSAGES = {
     FAILED_TO_DELETE_REACTION: 'Failed to delete reaction',
     FAILED_TO_UPDATE_STATUS: 'Failed to update online status',
     FAILED_TO_GET_MEMBERS: 'Failed to get room members',
+    FAILED_TO_LIST_REACTION_USERS: 'Failed to list reaction users',
     UPDATE_PERMISSION_DENIED: 'Only the message creator can update this message',
     DELETE_PERMISSION_DENIED: 'You do not have permission to delete this message',
-
     INVALID_DATA: 'Invalid data provided',
     INTERNAL_ERROR: 'Internal server error'
   }

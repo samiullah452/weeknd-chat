@@ -437,6 +437,38 @@ class SocketService {
       }
     });
 
+    socket.on('list-reaction-users', async (data) => {
+      try {
+        const { messageId, emoji, roomId, page = 0 } = data;
+
+        if (!messageId || !emoji || !roomId) {
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          return;
+        }
+
+        // Check if user has access to the room
+        const hasAccess = await userService.checkRoomAccess(socket.userId, roomId);
+
+        if (!hasAccess) {
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.ROOM_ACCESS_DENIED));
+          return;
+        }
+
+        // Get users who reacted with this emoji
+        const users = await userService.listReactionUsers(messageId, emoji, page);
+
+        socket.emit('reaction-users-fetched', createSuccessResponse(
+          MESSAGES.SUCCESS.REACTION_USERS_LISTED,
+          { messageId, emoji, users, page }
+        ));
+
+      } catch (error) {
+        socket.emit('error', createErrorResponse(
+          MESSAGES.ERROR.FAILED_TO_LIST_REACTION_USERS,
+          error.message
+        ));
+      }
+    });
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
       // Socket.IO automatically handles cleanup, no manual removal needed

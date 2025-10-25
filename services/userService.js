@@ -527,6 +527,43 @@ class UserService {
     }
   }
 
+  async listReactionUsers(messageId, emoji, page = 0) {
+    try {
+      const limit = parseInt(process.env.PAGE_LIMIT) || 20;
+      const offset = page * limit;
+
+      const query = `
+        SELECT u.id, u.first_name,
+              CONCAT(up.id, '|photo|', up.file_name, '|', up.user_id) as cover_data
+        FROM message_reaction mr
+        JOIN user u ON mr.user_id = u.id
+        LEFT JOIN user_photo up ON u.id = up.user_id
+        WHERE mr.message_id = ? AND mr.value = ?
+        ORDER BY mr.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+
+      const results = await db.query(query, [messageId, emoji]);
+
+      // Process results in parallel with error handling for each user
+      const users = await Promise.all(
+        results.map(async (row) => {
+          const profilePhoto = await this.processCoverURL(row, `user ${row.id}`);
+
+          return {
+            id: row.id,
+            firstName: row.first_name,
+            profilePhoto
+          };
+        })
+      );
+
+      return users;
+    } catch (error) {
+      console.error('Error listing reaction users:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new UserService();
