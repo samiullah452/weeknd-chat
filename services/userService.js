@@ -552,10 +552,10 @@ class UserService {
         WHERE mr.message_id = ?
           AND mr.value = '?'
         ORDER BY mr.created_at DESC
-
         LIMIT ${limit} OFFSET ${offset}
       `;
 
+      console.log(query)
       const results = await db.query(query, [messageId, emoji]);
 
       // Process results in parallel with error handling for each user
