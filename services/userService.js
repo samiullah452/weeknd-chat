@@ -555,7 +555,6 @@ class UserService {
         LIMIT ${limit} OFFSET ${offset}
       `;
 
-      console.log(query)
       const results = await db.query(query, [messageId, emoji]);
 
       // Process results in parallel with error handling for each user
@@ -570,7 +569,7 @@ class UserService {
           };
         })
       );
-      console.log(users)
+      console.log(messageId, emoji)
       return users;
     } catch (error) {
       console.error('Error listing reaction users:', error);
