@@ -549,13 +549,13 @@ class UserService {
           ) latest ON up_inner.user_id = latest.user_id
                   AND up_inner.created_at = latest.max_created_at
         ) up ON u.id = up.user_id
-        WHERE mr.message_id = ?
-          AND mr.value = '?'
+        WHERE mr.message_id = ${messageId}
+          AND mr.value = '${emoji}'
         ORDER BY mr.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
 
-      const results = await db.query(query, [messageId, emoji]);
+      const results = await db.query(query, []);
 
       // Process results in parallel with error handling for each user
       const users = await Promise.all(
@@ -569,7 +569,7 @@ class UserService {
           };
         })
       );
-      console.log(messageId, emoji)
+      console.log(users);
       return users;
     } catch (error) {
       console.error('Error listing reaction users:', error);
