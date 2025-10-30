@@ -121,6 +121,8 @@ class UserService {
       const messages = await Promise.all(
         results.map(async (row) => {
           let coverURL = null;
+          let media = null;
+          let messageValue = row.value;
 
           // Check if we already calculated coverURL for this user
           if (row.cover_data) {
@@ -135,9 +137,10 @@ class UserService {
               coverURLCache[userId] = coverURL;
             }
           }
-          let media = row.media;
-          if (media) {
-            media = this.processMediaObject(media, `message ${row.id}`);
+
+          if (row.media) {
+            messageValue = await this.processMediaURL(row.media, `message ${row.id}`);
+            media = await this.processCoverURL(row.media, `message ${row.id}`);
           }
 
           return {
@@ -145,7 +148,7 @@ class UserService {
             roomId: row.room_id,
             isEdited: row.is_edited,
             type: row.type,
-            value: row.value,
+            value: messageValue,
             createdAt: row.created_at,
             parentMessage: row.parent_message ? {
               id: row.parent_message,
@@ -181,20 +184,20 @@ class UserService {
     }
   }
 
-  async processMediaObject(media_data, itemId) {
-    let media = {}
+  async processMediaURL(media_data, itemId) {
+    let mediaURL = null;
+    
     try {
       if (media_data) {
         const [mediaId, mediaType, fileName, userId] = media_data.split('|');
-        media.thumbnail = await this.calculateCoverURL(userId, mediaId, fileName, mediaType);
-        const folderName = mediaType == "video" ? process.env.VIDEO_FOLDER : process.env.PHOTO_FOLDER;
-        media.url = `${process.env.AWS_CDN}/${folderName}/${userId}/${mediaId}${fileName}`;
+        mediaURL = await this.calculateMediaURL(userId, mediaId, fileName, mediaType);
       }
     } catch (error) {
-      console.error(`Error processing media for ${itemId}:`, error);
-      media = {};
+      console.error(`Error processing cover for ${itemId}:`, error);
+      mediaURL = null;
     }
-    return media
+    
+    return mediaURL;
   }
 
   async processCoverURL(cover_data, itemId) {
@@ -213,6 +216,11 @@ class UserService {
     return coverURL;
   }
 
+  async calculateMediaURL(userId, mediaId, fileName, mediaType) {
+    const folderName = mediaType == "video" ? process.env.VIDEO_FOLDER : process.env.PHOTO_FOLDER;
+    return `${process.env.AWS_CDN}/${folderName}/${userId}/${mediaId}${fileName}`;
+  }
+
   async calculateCoverURL(userId, mediaId, fileName, mediaType) {
     try {
       const thumbnailObject = `${process.env.THUMBNAIL_FOLDER}/${userId}/${mediaId}.png`;
@@ -220,8 +228,7 @@ class UserService {
       if (thumbnailExists) {
         return `${process.env.AWS_CDN}/${thumbnailObject}`;
       }
-      const folderName = mediaType == "video" ? process.env.VIDEO_FOLDER : process.env.PHOTO_FOLDER;
-      return `${process.env.AWS_CDN}/${folderName}/${userId}/${mediaId}${fileName}`;
+      return this.calculateMediaURL(userId, mediaId, fileName, mediaType);
     } catch (error) {
       console.error('Error calculating cover URL:', error);
       return null;
