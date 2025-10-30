@@ -121,7 +121,7 @@ class UserService {
       const messages = await Promise.all(
         results.map(async (row) => {
           let coverURL = null;
-          let media = null;
+          let thumbnail = null;
           let messageValue = row.value;
 
           // Check if we already calculated coverURL for this user
@@ -140,7 +140,7 @@ class UserService {
 
           if (row.media) {
             messageValue = await this.processMediaURL(row.media, `message ${row.id}`);
-            media = await this.processCoverURL(row.media, `message ${row.id}`);
+            thumbnail = await this.processCoverURL(row.media, `message ${row.id}`);
           }
 
           return {
@@ -161,7 +161,7 @@ class UserService {
             reactions: row.reactions,
             mentions: row.mentions,
             coverURL,
-            media
+            thumbnail
           };
         })
       );
