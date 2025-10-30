@@ -63,7 +63,7 @@ class UserService {
       // Process results in parallel with error handling for each room
       const rooms = await Promise.all(
         results.map(async (row) => {
-          const coverURL = await this.processCoverURL(row, `room ${row.id}`);
+          const coverURL = await this.processCoverURL(row.cover_data, `room ${row.id}`);
 
           // Extract entity_id and name from name_data (format: id|name)
           let entityId = null;
@@ -114,10 +114,31 @@ class UserService {
 
       const results = await db.query(query, messageId ? [roomId, messageId] : [roomId]);
 
+      // Cache for cover URLs by user_id
+      const coverURLCache = {};
+      
       // Process results in parallel with error handling for each message
       const messages = await Promise.all(
         results.map(async (row) => {
-          const coverURL = await this.processCoverURL(row, `message ${row.id}`);
+          let coverURL = null;
+
+          // Check if we already calculated coverURL for this user
+          if (row.cover_data) {
+            const userId = row.cover_data.split('|')[3]; // Extract user_id from cover_data
+            
+            if (coverURLCache[userId]) {
+              // Use cached cover URL
+              coverURL = coverURLCache[userId];
+            } else {
+              // Calculate and cache the cover URL
+              coverURL = await this.processCoverURL(row.cover_data, `message ${row.id}`);
+              coverURLCache[userId] = coverURL;
+            }
+          }
+          let media = row.media;
+          if (media) {
+            media = this.processMediaObject(media, `message ${row.id}`);
+          }
 
           return {
             id: row.id,
@@ -136,7 +157,8 @@ class UserService {
             },
             reactions: row.reactions,
             mentions: row.mentions,
-            coverURL
+            coverURL,
+            media
           };
         })
       );
@@ -159,12 +181,28 @@ class UserService {
     }
   }
 
-  async processCoverURL(row, itemId) {
+  async processMediaObject(media_data, itemId) {
+    let media = {}
+    try {
+      if (media_data) {
+        const [mediaId, mediaType, fileName, userId] = media_data.split('|');
+        media.thumbnail = await this.calculateCoverURL(userId, mediaId, fileName, mediaType);
+        const folderName = mediaType == "video" ? process.env.VIDEO_FOLDER : process.env.PHOTO_FOLDER;
+        media.url = `${process.env.AWS_CDN}/${folderName}/${userId}/${mediaId}${fileName}`;
+      }
+    } catch (error) {
+      console.error(`Error processing media for ${itemId}:`, error);
+      media = {};
+    }
+    return media
+  }
+
+  async processCoverURL(cover_data, itemId) {
     let coverURL = null;
     
     try {
-      if (row.cover_data) {
-        const [mediaId, mediaType, fileName, userId] = row.cover_data.split('|');
+      if (cover_data) {
+        const [mediaId, mediaType, fileName, userId] = cover_data.split('|');
         coverURL = await this.calculateCoverURL(userId, mediaId, fileName, mediaType);
       }
     } catch (error) {
@@ -226,7 +264,7 @@ class UserService {
 
       const members = await Promise.all(
         results.map(async (row) => {
-          const profilePhoto = await this.processCoverURL(row, `user ${row.id}`);
+          const profilePhoto = await this.processCoverURL(row.cover_data, `user ${row.id}`);
 
           return {
             id: row.id,
@@ -256,12 +294,12 @@ class UserService {
       if (results.length === 0) return [];
 
       const isDirectMessage = results[0].room_type === 'direct_message';
-      const sharedCoverURL = isDirectMessage ? null : await this.processCoverURL(results[0], `room ${results[0].room_id}`);
+      const sharedCoverURL = isDirectMessage ? null : await this.processCoverURL(results[0].cover_data, `room ${results[0].room_id}`);
 
       const inboxDataByUser = await Promise.all(
         results.map(async (row) => {
           const coverURL = isDirectMessage
-            ? await this.processCoverURL(row, `room ${row.id}`)
+            ? await this.processCoverURL(row.cover_data, `room ${row.id}`)
             : sharedCoverURL;
 
           // Extract entity_id and name from name_data (format: id|name)
@@ -560,7 +598,7 @@ class UserService {
       // Process results in parallel with error handling for each user
       const users = await Promise.all(
         results.map(async (row) => {
-          const profilePhoto = await this.processCoverURL(row, `user ${row.id}`);
+          const profilePhoto = await this.processCoverURL(row.cover_data, `user ${row.id}`);
 
           return {
             id: row.id,
@@ -569,7 +607,6 @@ class UserService {
           };
         })
       );
-      console.log(users);
       return users;
     } catch (error) {
       console.error('Error listing reaction users:', error);
