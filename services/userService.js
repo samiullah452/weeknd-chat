@@ -357,16 +357,16 @@ class UserService {
       await connection.beginTransaction();
 
       // Insert into user_photo or user_video if type is photo/video
-      if (media && (type === 'photo' || type === 'video')) {
+      if (media && (type === 'IMAGE' || type === 'VIDEO')) {
         const { id, fileName, type: mediaType } = media;
 
-        if (type === 'photo') {
+        if (type === 'IMAGE') {
           const insertPhotoQuery = `
             INSERT INTO user_photo (id, user_id, file_name, type, photo_type)
             VALUES (?, ?, ?, ?, 5)
           `;
           await connection.execute(insertPhotoQuery, [id, userId, fileName, mediaType]);
-        } else if (type === 'video') {
+        } else if (type === 'VIDEO') {
           const insertVideoQuery = `
             INSERT INTO user_video (id, user_id, file_name, type, video_type)
             VALUES (?, ?, ?, ?, 5)
