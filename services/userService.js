@@ -217,7 +217,7 @@ class UserService {
   }
 
   async calculateMediaURL(userId, mediaId, fileName, mediaType) {
-    const folderName = mediaType === "VIDEO" ? process.env.VIDEO_FOLDER : process.env.PHOTO_FOLDER;
+    const folderName = mediaType == "VIDEO" ? process.env.VIDEO_FOLDER : process.env.PHOTO_FOLDER;
     return `${process.env.AWS_CDN}/${folderName}/${userId}/${mediaId}${fileName}`;
   }
 
