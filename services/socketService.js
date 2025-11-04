@@ -24,15 +24,15 @@ class SocketService {
     }
   }
 
-  emitConnectionEvent(io, roomId, primaryUserId, secondaryUserId, eventName, successMessage, data = {}) {
-    const eventData = { roomId, ...data };
+  emitConnectionEvent(io, roomId, primaryUserId, secondaryUserId, successMessage) {
+    const eventData = { roomId };
 
     // Emit to the room (both users in the room)
-    io.to(`room_${roomId}`).emit(eventName, createSuccessResponse(successMessage, eventData));
+    io.to(`room_${roomId}`).emit('connection-removed', createSuccessResponse(successMessage, eventData));
 
     // Emit to both users' personal rooms to update their inbox
-    io.to(`user_${primaryUserId}`).emit(eventName, createSuccessResponse(successMessage, eventData));
-    io.to(`user_${secondaryUserId}`).emit(eventName, createSuccessResponse(successMessage, eventData));
+    io.to(`user_${primaryUserId}`).emit('delete-inbox', createSuccessResponse(successMessage, eventData));
+    io.to(`user_${secondaryUserId}`).emit('delete-inbox', createSuccessResponse(successMessage, eventData));
   }
 
   async sendInboxUpdate(roomId, messageId, messageData, io, sendPushNotification = false) {
@@ -507,7 +507,6 @@ class SocketService {
           result.roomId,
           socket.userId,
           userId,
-          'connection-removed',
           MESSAGES.SUCCESS.CONNECTION_REMOVED
         );
 
@@ -545,9 +544,7 @@ class SocketService {
           result.roomId,
           socket.userId,
           userId,
-          'connection-flagged',
-          MESSAGES.SUCCESS.CONNECTION_FLAGGED,
-          { value }
+          MESSAGES.SUCCESS.CONNECTION_FLAGGED
         );
 
       } catch (error) {
