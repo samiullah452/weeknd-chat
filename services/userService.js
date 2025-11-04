@@ -259,11 +259,23 @@ class UserService {
       }
 
       const query = `
-        SELECT u.id, u.first_name, ur.is_operator,
-               CONCAT(up.id, '|photo|', up.file_name, '|', up.user_id) as cover_data
-        FROM user_room ur
-        JOIN user u ON ur.user_id = u.id
-        LEFT JOIN user_photo up ON u.id = up.user_id
+          SELECT 
+            u.id,
+            u.first_name,
+            ur.is_operator,
+            CONCAT(up.id, '|photo|', up.file_name, '|', up.user_id) AS cover_data
+          FROM user_room ur
+          JOIN user u ON ur.user_id = u.id
+          LEFT JOIN (
+            SELECT up_inner.user_id, up_inner.id, up_inner.file_name
+            FROM user_photo up_inner
+            JOIN (
+              SELECT user_id, MAX(created_at) AS max_created_at
+              FROM user_photo
+              GROUP BY user_id
+            ) latest ON up_inner.user_id = latest.user_id
+                    AND up_inner.created_at = latest.max_created_at
+          ) up ON u.id = up.user_id
         ${whereCondition}
         LIMIT ${limit} OFFSET ${offset}
       `;

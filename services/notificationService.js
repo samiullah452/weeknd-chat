@@ -95,13 +95,13 @@ class NotificationService {
 
   getMessageBody(messageData) {
     switch (messageData.type) {
-      case 'text':
+      case 'TEXT':
         return messageData.value.length > 150
           ? messageData.value.substring(0, 150) + '...'
           : messageData.value;
-      case 'photo':
-        return 'A photo is sent';
-      case 'video':
+      case 'IMAGE':
+        return 'An image is sent';
+      case 'VIDEO':
         return 'A video is sent';
       default:
         return 'New message';
