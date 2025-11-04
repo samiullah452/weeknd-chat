@@ -13,7 +13,9 @@ const MESSAGES = {
     INBOX_UPDATED: 'Inbox updated successfully',
     ONLINE_STATUS_UPDATED: 'Online status updated successfully',
     MEMBERS_LISTED: 'Members retrieved successfully',
-    REACTION_USERS_LISTED: 'Reaction users listed successfully'
+    REACTION_USERS_LISTED: 'Reaction users listed successfully',
+    CONNECTION_REMOVED: 'Connection removed successfully',
+    CONNECTION_FLAGGED: 'Connection flagged successfully'
 
   },
 
@@ -37,6 +39,8 @@ const MESSAGES = {
     FAILED_TO_UPDATE_STATUS: 'Failed to update online status',
     FAILED_TO_GET_MEMBERS: 'Failed to get room members',
     FAILED_TO_LIST_REACTION_USERS: 'Failed to list reaction users',
+    FAILED_TO_REMOVE_CONNECTION: 'Failed to remove connection',
+    FAILED_TO_FLAG_CONNECTION: 'Failed to flag connection',
     UPDATE_PERMISSION_DENIED: 'Only the message creator can update this message',
     DELETE_PERMISSION_DENIED: 'You do not have permission to delete this message',
     INVALID_DATA: 'Invalid data provided',

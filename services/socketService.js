@@ -24,6 +24,17 @@ class SocketService {
     }
   }
 
+  emitConnectionEvent(io, roomId, primaryUserId, secondaryUserId, eventName, successMessage, data = {}) {
+    const eventData = { roomId, ...data };
+
+    // Emit to the room (both users in the room)
+    io.to(`room_${roomId}`).emit(eventName, createSuccessResponse(successMessage, eventData));
+
+    // Emit to both users' personal rooms to update their inbox
+    io.to(`user_${primaryUserId}`).emit(eventName, createSuccessResponse(successMessage, eventData));
+    io.to(`user_${secondaryUserId}`).emit(eventName, createSuccessResponse(successMessage, eventData));
+  }
+
   async sendInboxUpdate(roomId, messageId, messageData, io, sendPushNotification = false) {
     try {
       let offset = 0;
@@ -63,7 +74,7 @@ class SocketService {
 
       // Send push notifications to offline users if enabled
       if (offlineUserIds.length > 0) {
-        // notificationService.sendMessageNotification(offlineUserIds, messageData);
+        notificationService.sendMessageNotification(offlineUserIds, messageData);
       }
     } catch (error) {
       console.error('Error sending inbox update:', error);
@@ -469,6 +480,84 @@ class SocketService {
         ));
       }
     });
+
+    socket.on('remove-connection', async (data) => {
+      try {
+        const { userId } = data;
+
+        if (!userId) {
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          return;
+        }
+
+        // Remove connection between users and delete the room
+        const result = await userService.removeConnection(socket.userId, userId);
+
+        if (!result.success) {
+          socket.emit('error', createErrorResponse(
+            MESSAGES.ERROR.FAILED_TO_REMOVE_CONNECTION,
+            result.reason
+          ));
+          return;
+        }
+
+        // Emit connection-removed event to all relevant clients
+        this.emitConnectionEvent(
+          io,
+          result.roomId,
+          socket.userId,
+          userId,
+          'connection-removed',
+          MESSAGES.SUCCESS.CONNECTION_REMOVED
+        );
+
+      } catch (error) {
+        socket.emit('error', createErrorResponse(
+          MESSAGES.ERROR.FAILED_TO_REMOVE_CONNECTION,
+          error.message
+        ));
+      }
+    });
+
+    socket.on('flag-connection', async (data) => {
+      try {
+        const { userId, value } = data;
+
+        if (!userId || !value) {
+          socket.emit('error', createErrorResponse(MESSAGES.ERROR.INVALID_DATA));
+          return;
+        }
+
+        // Flag connection and remove it
+        const result = await userService.flagConnection(socket.userId, userId, value);
+
+        if (!result.success) {
+          socket.emit('error', createErrorResponse(
+            MESSAGES.ERROR.FAILED_TO_FLAG_CONNECTION,
+            result.reason
+          ));
+          return;
+        }
+
+        // Emit connection-flagged event to all relevant clients
+        this.emitConnectionEvent(
+          io,
+          result.roomId,
+          socket.userId,
+          userId,
+          'connection-flagged',
+          MESSAGES.SUCCESS.CONNECTION_FLAGGED,
+          { value }
+        );
+
+      } catch (error) {
+        socket.emit('error', createErrorResponse(
+          MESSAGES.ERROR.FAILED_TO_FLAG_CONNECTION,
+          error.message
+        ));
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
       // Socket.IO automatically handles cleanup, no manual removal needed

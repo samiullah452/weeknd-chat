@@ -632,6 +632,93 @@ class UserService {
       throw error;
     }
   }
+
+  async removeConnection(primaryUserId, secondaryUserId) {
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // Find the direct_message room that has exactly these 2 users as members
+      const findRoomQuery = `
+        SELECT r.id
+        FROM room r
+        INNER JOIN user_room ur1 ON r.id = ur1.room_id AND ur1.user_id = ?
+        INNER JOIN user_room ur2 ON r.id = ur2.room_id AND ur2.user_id = ?
+        WHERE r.type = 'direct_message'
+        AND (
+          SELECT COUNT(*) FROM user_room WHERE room_id = r.id
+        ) = 2
+        LIMIT 1
+      `;
+
+      const [roomResults] = await connection.execute(findRoomQuery, [
+        primaryUserId,
+        secondaryUserId
+      ]);
+
+      if (roomResults.length === 0) {
+        await connection.rollback();
+        return { success: false, reason: 'No direct message room found between these users' };
+      }
+
+      const roomId = roomResults[0].id;
+
+      // Delete connection from user_interaction
+      const deleteConnectionQuery = `
+        DELETE FROM user_interaction
+        WHERE type = 'match'
+        AND (
+          (primary_user_id = ? AND secondary_user_id = ?)
+          OR
+          (primary_user_id = ? AND secondary_user_id = ?)
+        )
+      `;
+
+      await connection.execute(deleteConnectionQuery, [
+        primaryUserId,
+        secondaryUserId,
+        secondaryUserId,
+        primaryUserId
+      ]);
+
+      // Delete the room
+      const deleteRoomQuery = `
+        DELETE FROM room
+        WHERE id = ?
+      `;
+
+      await connection.execute(deleteRoomQuery, [roomId]);
+
+      await connection.commit();
+      return { success: true, roomId };
+    } catch (error) {
+      await connection.rollback();
+      console.error('Error removing connection:', error);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  async flagConnection(primaryUserId, secondaryUserId, value) {
+    try {
+      // Insert flag entry into user_interaction
+      const insertFlagQuery = `
+        INSERT INTO user_interaction (primary_user_id, secondary_user_id, type, value)
+        VALUES (?, ?, 'flag', ?)
+      `;
+
+      await db.query(insertFlagQuery, [primaryUserId, secondaryUserId, value]);
+
+      // Remove connection and room after flagging
+      const result = await this.removeConnection(primaryUserId, secondaryUserId);
+
+      return result;
+    } catch (error) {
+      console.error('Error flagging connection:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new UserService();
