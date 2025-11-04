@@ -56,7 +56,7 @@ class UserService {
       // Optimized query using CTEs instead of LATERAL JOINs
       const query = roomId
         ? `SELECT * FROM user_room_info u ${whereCondition} LIMIT 1`
-        : `SELECT * FROM user_room_info u ${whereCondition} ORDER BY u.last_message_date DESC LIMIT ${limit} OFFSET ${offset}`;
+        : `SELECT * FROM user_room_info u ${whereCondition} ORDER BY COALESCE(u.last_message_date, u.room_created_at) DESC LIMIT ${limit} OFFSET ${offset}`;
 
       const results = await db.query(query, queryParams);
       
