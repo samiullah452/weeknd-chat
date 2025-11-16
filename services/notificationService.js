@@ -13,11 +13,13 @@ class NotificationService {
       const additionalParams = {
         screen: "ChatMessage",
         params: {
-          id: roomData.id,
-          name: roomData.name,
-          entityId: roomData.entityId,
-          type: roomData.type,
-          coverURL: roomData.coverURL
+          currentChat: {
+            id: roomData.id,
+            name: roomData.name,
+            entityId: roomData.entityId,
+            type: roomData.type,
+            coverURL: roomData.coverURL
+          }
         }
       };
 
