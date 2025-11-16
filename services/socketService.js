@@ -40,6 +40,7 @@ class SocketService {
       let offset = 0;
       const limit = 100;
       const offlineUserIds = [];
+      let roomData = null;
 
       while (true) {
         const membersInboxData = await userService.getRoomMembersInboxData(roomId, offset, limit);
@@ -47,6 +48,15 @@ class SocketService {
         if (membersInboxData.length === 0) break;
 
         for (const { userId, data } of membersInboxData) {
+          if (roomData == null) {
+            roomData = {
+              id: data.id,
+              name: data.name,
+              entityId: data.entityId,
+              type: data.type,
+              coverURL: data.coverURL,
+            }
+          }
           // Get user connection data (online status and current roomId)
           const { isOnline, roomId: userCurrentRoomId } = await this.getUserConnectionData(userId, io);
 
@@ -74,7 +84,7 @@ class SocketService {
 
       // Send push notifications to offline users if enabled
       if (offlineUserIds.length > 0) {
-        notificationService.sendMessageNotification(offlineUserIds, messageData);
+        notificationService.sendMessageNotification(offlineUserIds, messageData, roomData);
       }
     } catch (error) {
       console.error('Error sending inbox update:', error);

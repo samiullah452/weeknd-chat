@@ -3,7 +3,7 @@ const firebaseConfig = require('../config/firebase'); // Initialize Firebase
 const userService = require('./userService');
 
 class NotificationService {
-  async sendMessageNotification(userIds, messageData) {
+  async sendMessageNotification(userIds, messageData, roomData) {
     try {
       if (userIds.length === 0) return;
 
@@ -13,8 +13,11 @@ class NotificationService {
       const additionalParams = {
         screen: "ChatMessage",
         params: {
-          roomId: String(messageData.roomId || ''),
-          messageId: String(messageData.id || '')
+          id: roomData.id,
+          name: roomData.name,
+          entityId: roomData.entityId,
+          type: roomData.type,
+          coverURL: roomData.coverURL
         }
       };
 
