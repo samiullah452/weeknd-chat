@@ -1,4 +1,5 @@
 const admin = require('firebase-admin');
+const firebaseConfig = require('../config/firebase'); // Initialize Firebase
 const userService = require('./userService');
 
 class NotificationService {
@@ -22,6 +23,7 @@ class NotificationService {
       const limit = 100;
 
       while (true) {
+        console.log("Length of userIds: ", userIds.length )
         const deviceTokens = await userService.getUserDeviceTokens(userIds, offset, limit);
 
         if (deviceTokens.length === 0) break;
