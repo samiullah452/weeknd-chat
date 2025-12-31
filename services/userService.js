@@ -272,6 +272,7 @@ class UserService {
             JOIN (
               SELECT user_id, MAX(created_at) AS max_created_at
               FROM user_photo
+              WHERE photo_type = 1
               GROUP BY user_id
             ) latest ON up_inner.user_id = latest.user_id
                     AND up_inner.created_at = latest.max_created_at
@@ -602,6 +603,7 @@ class UserService {
           JOIN (
             SELECT user_id, MAX(created_at) AS max_created_at
             FROM user_photo
+            WHERE photo_type = 1
             GROUP BY user_id
           ) latest ON up_inner.user_id = latest.user_id
                   AND up_inner.created_at = latest.max_created_at
